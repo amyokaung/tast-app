@@ -13,8 +13,18 @@ class LlamaModule(
     private val executor = Executors.newSingleThreadExecutor()
 
     companion object {
-        init {
-            System.loadLibrary("llama_bridge")
+        @Volatile
+        private var nativeLoaded = false
+
+        private fun ensureNativeLibraryLoaded() {
+            if (!nativeLoaded) {
+                synchronized(this) {
+                    if (!nativeLoaded) {
+                        System.loadLibrary("llama_bridge")
+                        nativeLoaded = true
+                    }
+                }
+            }
         }
     }
 
@@ -36,16 +46,46 @@ class LlamaModule(
     private external fun nativeClearContext()
 
     @ReactMethod
-    fun loadModel(path: String, contextSize: Int, promise: Promise) {
+    fun loadModel(
+        path: String,
+        contextSize: Int,
+        promise: Promise
+    ) {
         executor.execute {
             try {
-                val ok = nativeLoadModel(path, contextSize)
-                if (ok) promise.resolve(true)
-                else promise.reject("MODEL_LOAD_FAILED", "Unable to load GGUF model.")
+                ensureNativeLibraryLoaded()
+
+                val ok = nativeLoadModel(
+                    path,
+                    contextSize
+                )
+
+                if (ok) {
+                    promise.resolve(true)
+                } else {
+                    promise.reject(
+                        "MODEL_LOAD_FAILED",
+                        "Unable to load GGUF model."
+                    )
+                }
+
+            } catch (e: UnsatisfiedLinkError) {
+                promise.reject(
+                    "NATIVE_LIBRARY_ERROR",
+                    "Native llama library could not be loaded: ${e.message}"
+                )
+
             } catch (e: OutOfMemoryError) {
-                promise.reject("OUT_OF_MEMORY", "Not enough RAM to load this model.")
+                promise.reject(
+                    "OUT_OF_MEMORY",
+                    "Not enough RAM to load this model."
+                )
+
             } catch (e: Exception) {
-                promise.reject("MODEL_ERROR", e.message)
+                promise.reject(
+                    "MODEL_ERROR",
+                    e.message
+                )
             }
         }
     }
@@ -59,26 +99,55 @@ class LlamaModule(
     ) {
         executor.execute {
             try {
+                ensureNativeLibraryLoaded()
+
                 nativeGenerate(
                     prompt,
                     maxTokens,
                     temperature.toFloat(),
                     NativeCallback()
                 )
+
                 promise.resolve(true)
+
+            } catch (e: UnsatisfiedLinkError) {
+                promise.reject(
+                    "NATIVE_LIBRARY_ERROR",
+                    "Native llama library could not be loaded: ${e.message}"
+                )
+
             } catch (e: OutOfMemoryError) {
-                promise.reject("OUT_OF_MEMORY", "Not enough RAM for generation.")
+                promise.reject(
+                    "OUT_OF_MEMORY",
+                    "Not enough RAM for generation."
+                )
+
             } catch (e: Exception) {
-                promise.reject("GENERATION_ERROR", e.message)
+                promise.reject(
+                    "GENERATION_ERROR",
+                    e.message
+                )
             }
         }
     }
 
     @ReactMethod
-    fun stop() = nativeStop()
+    fun stop() {
+        try {
+            ensureNativeLibraryLoaded()
+            nativeStop()
+        } catch (_: UnsatisfiedLinkError) {
+        }
+    }
 
     @ReactMethod
-    fun clearContext() = nativeClearContext()
+    fun clearContext() {
+        try {
+            ensureNativeLibraryLoaded()
+            nativeClearContext()
+        } catch (_: UnsatisfiedLinkError) {
+        }
+    }
 
     @ReactMethod
     fun addListener(eventName: String) {}
@@ -87,6 +156,7 @@ class LlamaModule(
     fun removeListeners(count: Int) {}
 
     inner class NativeCallback {
+
         fun onToken(token: String) {
             context
                 .getJSModule(
