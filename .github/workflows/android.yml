@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - fix/android-build
+
   pull_request:
     branches:
       - main
@@ -15,17 +16,30 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+
+      # --------------------------------------------------
+      # 1. Checkout Repository
+      # --------------------------------------------------
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           submodules: false
           fetch-depth: 1
 
+
+      # --------------------------------------------------
+      # 2. Setup Node.js
+      # --------------------------------------------------
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
 
+
+      # --------------------------------------------------
+      # 3. Setup Java 17
+      # --------------------------------------------------
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
@@ -33,12 +47,31 @@ jobs:
           java-version: '17'
           cache: gradle
 
+
+      # --------------------------------------------------
+      # 4. Setup Android SDK
+      # --------------------------------------------------
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          cmdline-tools-version: 12266719
+          accept-android-sdk-licenses: true
+          log-accepted-android-sdk-licenses: true
 
+
+      # --------------------------------------------------
+      # 5. Install Android SDK Packages
+      # --------------------------------------------------
       - name: Install Android SDK packages
+        shell: bash
         run: |
-          yes | sdkmanager --licenses || true
+          set -e
+
+          echo "Accepting Android SDK licenses..."
+
+          yes | sdkmanager --licenses >/dev/null || true
+
+          echo "Installing Android SDK packages..."
 
           sdkmanager \
             "platform-tools" \
@@ -47,33 +80,132 @@ jobs:
             "cmake;3.31.6" \
             "ndk;27.1.12297006"
 
-      - name: Install Gradle
+          echo "Android SDK packages installed successfully."
+
+
+      # --------------------------------------------------
+      # 6. Verify Android SDK
+      # --------------------------------------------------
+      - name: Verify Android SDK
+        shell: bash
+        run: |
+          set -e
+
+          echo "========================================"
+          echo "ANDROID SDK INFORMATION"
+          echo "========================================"
+
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
+
+          echo ""
+          echo "Installed SDK packages:"
+          sdkmanager --list_installed
+
+          echo ""
+          echo "Checking required SDK directories..."
+
+          test -d "$ANDROID_SDK_ROOT/platform-tools"
+          test -d "$ANDROID_SDK_ROOT/platforms/android-37"
+          test -d "$ANDROID_SDK_ROOT/build-tools/37.0.0"
+          test -d "$ANDROID_SDK_ROOT/cmake/3.31.6"
+          test -d "$ANDROID_SDK_ROOT/ndk/27.1.12297006"
+
+          echo ""
+          echo "Android SDK verification successful."
+
+
+      # --------------------------------------------------
+      # 7. Setup Gradle
+      # --------------------------------------------------
+      - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '9.0'
 
+
+      # --------------------------------------------------
+      # 8. Install npm Dependencies
+      # --------------------------------------------------
       - name: Install npm dependencies
         run: npm install
 
+
+      # --------------------------------------------------
+      # 9. Clone llama.cpp
+      # --------------------------------------------------
       - name: Clone llama.cpp
+        shell: bash
         run: |
+          set -e
+
+          rm -rf cpp/llama.cpp
+
           git clone \
             --depth 1 \
             https://github.com/ggml-org/llama.cpp.git \
             cpp/llama.cpp
 
+
+      # --------------------------------------------------
+      # 10. Verify llama.cpp
+      # --------------------------------------------------
       - name: Verify llama.cpp
+        shell: bash
         run: |
+          set -e
+
           test -f cpp/llama.cpp/CMakeLists.txt
           test -f cpp/llama.cpp/include/llama.h
-          echo "llama.cpp is ready"
 
+          echo "llama.cpp is ready."
+
+
+      # --------------------------------------------------
+      # 11. Build Debug APK
+      # --------------------------------------------------
       - name: Build Debug APK
         working-directory: android
-        run: gradle assembleDebug --stacktrace
+        shell: bash
+        run: |
+          set -e
 
+          echo "========================================"
+          echo "STARTING GRADLE BUILD"
+          echo "========================================"
+
+          gradle assembleDebug --stacktrace --info
+
+
+      # --------------------------------------------------
+      # 12. Verify APK
+      # --------------------------------------------------
+      - name: Verify APK
+        shell: bash
+        run: |
+          set -e
+
+          APK_PATH="android/app/build/outputs/apk/debug/app-debug.apk"
+
+          if [ ! -f "$APK_PATH" ]; then
+            echo "ERROR: APK was not generated."
+            exit 1
+          fi
+
+          echo ""
+          echo "========================================"
+          echo "APK SUCCESSFULLY GENERATED"
+          echo "========================================"
+
+          ls -lh "$APK_PATH"
+
+
+      # --------------------------------------------------
+      # 13. Upload Debug APK
+      # --------------------------------------------------
       - name: Upload Debug APK
         uses: actions/upload-artifact@v4
         with:
           name: myanmar-offline-ai-debug
           path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
