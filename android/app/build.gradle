@@ -50,12 +50,6 @@ android {
         cmake {
             path file("src/main/cpp/CMakeLists.txt")
             version "3.31.6"
-
-            arguments "-DGGML_NATIVE=OFF",
-                      "-DGGML_OPENMP=OFF",
-                      "-DGGML_LLAMAFILE=OFF",
-                      "-DLLAMA_OPENSSL=OFF",
-                      "-DBUILD_SHARED_LIBS=OFF"
         }
     }
 }
