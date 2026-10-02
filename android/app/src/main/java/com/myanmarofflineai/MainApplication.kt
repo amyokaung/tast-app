@@ -12,20 +12,23 @@ import com.facebook.react.defaults.DefaultReactNativeHost
 class MainApplication : Application(), ReactApplication {
 
     override val reactNativeHost: ReactNativeHost =
-        object : DefaultReactNativeHost(this) {
+        object : DefaultReactNativeHost(this@MainApplication) {
 
             override fun getPackages() =
-                PackageList(this).packages.apply {
+                PackageList(this@MainApplication).packages.apply {
                     add(LlamaPackage())
                 }
 
             override fun getJSMainModuleName(): String = "index"
 
-            override fun getUseDeveloperSupport(): Boolean = BuildConfig.DEBUG
+            override fun getUseDeveloperSupport(): Boolean =
+                BuildConfig.DEBUG
 
-            override val isNewArchEnabled: Boolean = BuildConfig.IS_NEW_ARCHITECTURE_ENABLED
+            override val isNewArchEnabled: Boolean =
+                BuildConfig.IS_NEW_ARCHITECTURE_ENABLED
 
-            override val isHermesEnabled: Boolean = BuildConfig.IS_HERMES_ENABLED
+            override val isHermesEnabled: Boolean =
+                BuildConfig.IS_HERMES_ENABLED
         }
 
     override val reactHost: ReactHost
