@@ -55,8 +55,9 @@ jobs:
         uses: android-actions/setup-android@v3
         with:
           cmdline-tools-version: 12266719
+          packages: ''
           accept-android-sdk-licenses: true
-          log-accepted-android-sdk-licenses: true
+          log-accepted-android-sdk-licenses: false
 
 
       # --------------------------------------------------
@@ -67,11 +68,16 @@ jobs:
         run: |
           set -e
 
-          echo "Accepting Android SDK licenses..."
+          echo "========================================"
+          echo "ACCEPTING ANDROID SDK LICENSES"
+          echo "========================================"
 
           yes | sdkmanager --licenses >/dev/null || true
 
-          echo "Installing Android SDK packages..."
+          echo ""
+          echo "========================================"
+          echo "INSTALLING ANDROID SDK PACKAGES"
+          echo "========================================"
 
           sdkmanager \
             "platform-tools" \
@@ -80,6 +86,7 @@ jobs:
             "cmake;3.31.6" \
             "ndk;27.1.12297006"
 
+          echo ""
           echo "Android SDK packages installed successfully."
 
 
@@ -103,12 +110,18 @@ jobs:
           sdkmanager --list_installed
 
           echo ""
-          echo "Checking required SDK directories..."
+          echo "========================================"
+          echo "CHECKING REQUIRED SDK DIRECTORIES"
+          echo "========================================"
 
           test -d "$ANDROID_SDK_ROOT/platform-tools"
+
           test -d "$ANDROID_SDK_ROOT/platforms/android-37"
+
           test -d "$ANDROID_SDK_ROOT/build-tools/37.0.0"
+
           test -d "$ANDROID_SDK_ROOT/cmake/3.31.6"
+
           test -d "$ANDROID_SDK_ROOT/ndk/27.1.12297006"
 
           echo ""
@@ -139,12 +152,18 @@ jobs:
         run: |
           set -e
 
+          echo "========================================"
+          echo "CLONING LLAMA.CPP"
+          echo "========================================"
+
           rm -rf cpp/llama.cpp
 
           git clone \
             --depth 1 \
             https://github.com/ggml-org/llama.cpp.git \
             cpp/llama.cpp
+
+          echo "llama.cpp cloned successfully."
 
 
       # --------------------------------------------------
@@ -155,7 +174,12 @@ jobs:
         run: |
           set -e
 
+          echo "========================================"
+          echo "VERIFYING LLAMA.CPP"
+          echo "========================================"
+
           test -f cpp/llama.cpp/CMakeLists.txt
+
           test -f cpp/llama.cpp/include/llama.h
 
           echo "llama.cpp is ready."
@@ -176,6 +200,9 @@ jobs:
 
           gradle assembleDebug --stacktrace --info
 
+          echo ""
+          echo "Gradle build completed."
+
 
       # --------------------------------------------------
       # 12. Verify APK
@@ -187,15 +214,20 @@ jobs:
 
           APK_PATH="android/app/build/outputs/apk/debug/app-debug.apk"
 
+          echo "========================================"
+          echo "VERIFYING APK"
+          echo "========================================"
+
           if [ ! -f "$APK_PATH" ]; then
+            echo ""
             echo "ERROR: APK was not generated."
+            echo ""
             exit 1
           fi
 
           echo ""
-          echo "========================================"
-          echo "APK SUCCESSFULLY GENERATED"
-          echo "========================================"
+          echo "APK SUCCESSFULLY GENERATED:"
+          echo ""
 
           ls -lh "$APK_PATH"
 
