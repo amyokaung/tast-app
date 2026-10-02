@@ -15,9 +15,7 @@ class MainApplication : Application(), ReactApplication {
         object : DefaultReactNativeHost(this@MainApplication) {
 
             override fun getPackages() =
-                PackageList(this@MainApplication).packages.apply {
-                    add(LlamaPackage())
-                }
+                PackageList(this@MainApplication).packages
 
             override fun getJSMainModuleName(): String = "index"
 
