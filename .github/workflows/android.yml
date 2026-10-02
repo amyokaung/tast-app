@@ -1,0 +1,74 @@
+name: Android Build
+
+on:
+  push:
+    branches:
+      - main
+      - fix/android-build
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build-debug:
+    name: Build Debug APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: false
+          fetch-depth: 1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK packages
+        run: |
+          yes | sdkmanager --licenses || true
+          sdkmanager \
+            "platform-tools" \
+            "platforms;android-37" \
+            "build-tools;37.0.0" \
+            "cmake;3.31.6" \
+            "ndk;29.0.13113456"
+
+      - name: Install npm dependencies
+        run: npm install
+
+      - name: Clone llama.cpp
+        run: |
+          git clone \
+            --depth 1 \
+            https://github.com/ggml-org/llama.cpp.git \
+            cpp/llama.cpp
+
+      - name: Verify llama.cpp
+        run: |
+          test -f cpp/llama.cpp/CMakeLists.txt
+          test -f cpp/llama.cpp/include/llama.h
+          echo "llama.cpp is ready"
+
+      - name: Build Debug APK
+        working-directory: android
+        run: gradle assembleDebug --stacktrace
+
+      - name: Upload Debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: myanmar-offline-ai-debug
+          path: android/app/build/outputs/apk/debug/app-debug.apk
