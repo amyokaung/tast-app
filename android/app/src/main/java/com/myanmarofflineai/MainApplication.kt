@@ -15,7 +15,9 @@ class MainApplication : Application(), ReactApplication {
         object : DefaultReactNativeHost(this@MainApplication) {
 
             override fun getPackages() =
-                PackageList(this@MainApplication).packages
+    listOf(
+        com.facebook.react.shell.MainReactPackage()
+    )
 
             override fun getJSMainModuleName(): String = "index"
 
