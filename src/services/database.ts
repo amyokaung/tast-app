@@ -1,11 +1,23 @@
-import {open} from '@op-engineering/op-sqlite';
+import {open, type DB} from '@op-engineering/op-sqlite';
 
-const db = open({name: 'myanmar_ai.db'});
+let db: DB | null = null;
+
+function getDb(): DB {
+  if (!db) {
+    db = open({
+      name: 'myanmar_ai.db',
+    });
+  }
+
+  return db;
+}
 
 export async function initDatabase() {
-  await db.execute(`PRAGMA foreign_keys = ON;`);
+  const database = getDb();
 
-  await db.execute(`
+  await database.execute(`PRAGMA foreign_keys = ON;`);
+
+  await database.execute(`
     CREATE TABLE IF NOT EXISTS conversations (
       id TEXT PRIMARY KEY,
       title TEXT NOT NULL,
@@ -14,7 +26,7 @@ export async function initDatabase() {
     );
   `);
 
-  await db.execute(`
+  await database.execute(`
     CREATE TABLE IF NOT EXISTS messages (
       id TEXT PRIMARY KEY,
       conversation_id TEXT NOT NULL,
@@ -27,15 +39,20 @@ export async function initDatabase() {
     );
   `);
 
-  await db.execute(`
+  await database.execute(`
     CREATE INDEX IF NOT EXISTS idx_messages_conversation
     ON messages(conversation_id);
   `);
 }
 
-export async function createConversation(id: string, title: string) {
+export async function createConversation(
+  id: string,
+  title: string,
+) {
+  const database = getDb();
   const now = Date.now();
-  await db.execute(
+
+  await database.execute(
     `INSERT INTO conversations
      (id, title, created_at, updated_at)
      VALUES (?, ?, ?, ?)`,
@@ -49,37 +66,63 @@ export async function addMessage(
   role: string,
   content: string,
 ) {
-  await db.execute(
+  const database = getDb();
+
+  await database.execute(
     `INSERT INTO messages
      (id, conversation_id, role, content, created_at)
      VALUES (?, ?, ?, ?, ?)`,
     [id, conversationId, role, content, Date.now()],
   );
 
-  await db.execute(
-    `UPDATE conversations SET updated_at = ? WHERE id = ?`,
+  await database.execute(
+    `UPDATE conversations
+     SET updated_at = ?
+     WHERE id = ?`,
     [Date.now(), conversationId],
   );
 }
 
-export async function getMessages(conversationId: string) {
-  const result = await db.execute(
+export async function getMessages(
+  conversationId: string,
+) {
+  const database = getDb();
+
+  const result = await database.execute(
     `SELECT * FROM messages
      WHERE conversation_id = ?
      ORDER BY created_at ASC`,
     [conversationId],
   );
+
   return result.rows;
 }
 
 export async function getConversations() {
-  const result = await db.execute(
-    `SELECT * FROM conversations ORDER BY updated_at DESC`,
+  const database = getDb();
+
+  const result = await database.execute(
+    `SELECT * FROM conversations
+     ORDER BY updated_at DESC`,
   );
+
   return result.rows;
 }
 
-export async function deleteConversation(id: string) {
-  await db.execute(`DELETE FROM messages WHERE conversation_id = ?`, [id]);
-  await db.execute(`DELETE FROM conversations WHERE id = ?`, [id]);
+export async function deleteConversation(
+  id: string,
+) {
+  const database = getDb();
+
+  await database.execute(
+    `DELETE FROM messages
+     WHERE conversation_id = ?`,
+    [id],
+  );
+
+  await database.execute(
+    `DELETE FROM conversations
+     WHERE id = ?`,
+    [id],
+  );
 }
