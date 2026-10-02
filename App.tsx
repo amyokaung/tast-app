@@ -1,6 +1,16 @@
 import React from 'react';
-import AppNavigator from './src/navigation/AppNavigator';
+import {SafeAreaView, Text} from 'react-native';
 
 export default function App() {
-  return <AppNavigator />;
+  return (
+    <SafeAreaView
+      style={{
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}>
+      <Text>Myanmar Offline AI</Text>
+      <Text>APP TEST OK</Text>
+    </SafeAreaView>
+  );
 }
