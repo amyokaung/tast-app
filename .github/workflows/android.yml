@@ -40,12 +40,18 @@ jobs:
       - name: Install Android SDK packages
         run: |
           yes | sdkmanager --licenses || true
+
           sdkmanager \
             "platform-tools" \
             "platforms;android-37" \
             "build-tools;37.0.0" \
             "cmake;3.31.6" \
-            "ndk;29.0.13113456"
+            "ndk;27.1.12297006"
+
+      - name: Install Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.0'
 
       - name: Install npm dependencies
         run: npm install
