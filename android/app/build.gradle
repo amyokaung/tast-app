@@ -57,9 +57,5 @@ android {
 dependencies {
     implementation("com.facebook.react:react-android")
 
-    if (hermesEnabled.toBoolean()) {
-        implementation("com.facebook.react:hermes-android")
-    } else {
-        implementation("org.webkit:android-jsc:+")
-    }
+    implementation("com.facebook.react:hermes-android")
 }
