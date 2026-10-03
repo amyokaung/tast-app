@@ -156,17 +156,17 @@ jobs:
         run: |
           set -e
 
-          APK_PATH="android/app/build/outputs/apk/release/app-release-unsigned.apk"
+          APK_PATH="android/app/build/outputs/apk/release/app-release.apk"
 
           if [ ! -f "$APK_PATH" ]; then
-            echo "ERROR: Release APK was not generated."
+            echo "ERROR: Signed Release APK was not generated."
             echo ""
             echo "Searching for generated APK files..."
             find android/app/build/outputs -type f -name "*.apk" -print || true
             exit 1
           fi
 
-          echo "Release APK generated successfully:"
+          echo "Signed Release APK generated successfully:"
           ls -lh "$APK_PATH"
 
       # ─────────────────────────────────────
@@ -176,5 +176,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: myanmar-offline-ai-release
-          path: android/app/build/outputs/apk/release/app-release-unsigned.apk
+          path: android/app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
