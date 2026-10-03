@@ -31,6 +31,9 @@ android {
 
         release {
             minifyEnabled enableProguardInReleaseBuilds
+
+            signingConfig signingConfigs.debug
+
             proguardFiles getDefaultProguardFile(
                 "proguard-android-optimize.txt"
             ), "proguard-rules.pro"
@@ -56,6 +59,5 @@ android {
 
 dependencies {
     implementation("com.facebook.react:react-android")
-
     implementation("com.facebook.react:hermes-android")
 }
