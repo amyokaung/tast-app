@@ -1,0 +1,100 @@
+name: Android Crash Diagnostic
+
+on:
+  workflow_dispatch:
+
+jobs:
+  crash-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Android
+        uses: android-actions/setup-android@v3
+        with:
+          cmdline-tools-version: 12266719
+          packages: ''
+          accept-android-sdk-licenses: true
+
+      - name: Install Android packages
+        run: |
+          yes | sdkmanager --licenses >/dev/null || true
+
+          sdkmanager \
+            "platform-tools" \
+            "platforms;android-36" \
+            "build-tools;36.0.0" \
+            "cmake;3.31.6" \
+            "ndk;27.1.12297006" \
+            "system-images;android-35;google_apis;x86_64"
+
+      - name: Install npm
+        run: npm install
+
+      - name: Clone llama.cpp
+        run: |
+          rm -rf cpp/llama.cpp
+          git clone --depth 1 \
+            https://github.com/ggml-org/llama.cpp.git \
+            cpp/llama.cpp
+
+      - name: Build x86_64 debug APK
+        working-directory: android
+        run: |
+          ./gradlew assembleDebug \
+            -PreactNativeArchitectures=x86_64 \
+            --stacktrace
+
+      - name: Start emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          ram-size: 4096M
+          heap-size: 1024M
+          script: |
+            adb wait-for-device
+            adb shell settings put global window_animation_scale 0
+            adb shell settings put global transition_animation_scale 0
+            adb shell settings put global animator_duration_scale 0
+
+            adb install -r android/app/build/outputs/apk/debug/app-debug.apk
+
+            adb shell am force-stop com.myanmarofflineai
+
+            echo "===== LAUNCH APP ====="
+            adb shell monkey \
+              -p com.myanmarofflineai \
+              -c android.intent.category.LAUNCHER 1
+
+            sleep 15
+
+            echo "===== PACKAGE STATE ====="
+            adb shell dumpsys package com.myanmarofflineai | head -100
+
+            echo "===== CRASH LOG ====="
+            adb logcat -d -v threadtime \
+              | grep -E \
+              "FATAL EXCEPTION|AndroidRuntime|DEBUG|crash|SIGABRT|SIGSEGV|libhermes|libreactnative|llama|com.myanmarofflineai" \
+              || true
+
+            echo "===== FULL RECENT LOG ====="
+            adb logcat -d -t 500
+
+            echo "===== PROCESS ====="
+            adb shell pidof com.myanmarofflineai || true
