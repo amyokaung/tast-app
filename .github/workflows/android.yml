@@ -107,7 +107,7 @@ jobs:
         run: |
           set -e
 
-          gradle assembleDebug --stacktrace --info
+          gradle assembleRelease --stacktrace --info
 
       - name: Verify APK
         shell: bash
