@@ -11,23 +11,32 @@ on:
       - main
 
 jobs:
-  build-debug:
-    name: Build Debug APK
+  build-release:
+    name: Build Release APK
     runs-on: ubuntu-latest
 
     steps:
 
+      # ─────────────────────────────────────
+      # Checkout
+      # ─────────────────────────────────────
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           submodules: false
           fetch-depth: 1
 
+      # ─────────────────────────────────────
+      # Node.js
+      # ─────────────────────────────────────
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
 
+      # ─────────────────────────────────────
+      # Java
+      # ─────────────────────────────────────
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
@@ -35,6 +44,9 @@ jobs:
           java-version: '17'
           cache: gradle
 
+      # ─────────────────────────────────────
+      # Android SDK
+      # ─────────────────────────────────────
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
         with:
@@ -43,6 +55,9 @@ jobs:
           accept-android-sdk-licenses: true
           log-accepted-android-sdk-licenses: false
 
+      # ─────────────────────────────────────
+      # Install Android SDK packages
+      # ─────────────────────────────────────
       - name: Install Android SDK packages
         shell: bash
         run: |
@@ -57,6 +72,9 @@ jobs:
             "cmake;3.31.6" \
             "ndk;27.1.12297006"
 
+      # ─────────────────────────────────────
+      # Verify Android SDK
+      # ─────────────────────────────────────
       - name: Verify Android SDK
         shell: bash
         run: |
@@ -73,14 +91,27 @@ jobs:
           test -d "$ANDROID_SDK_ROOT/cmake/3.31.6"
           test -d "$ANDROID_SDK_ROOT/ndk/27.1.12297006"
 
+      # ─────────────────────────────────────
+      # Gradle
+      # ─────────────────────────────────────
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '9.4.1'
 
+      # ─────────────────────────────────────
+      # npm dependencies
+      # ─────────────────────────────────────
       - name: Install npm dependencies
-        run: npm install
+        shell: bash
+        run: |
+          set -e
 
+          npm install
+
+      # ─────────────────────────────────────
+      # Clone llama.cpp
+      # ─────────────────────────────────────
       - name: Clone llama.cpp
         shell: bash
         run: |
@@ -93,6 +124,9 @@ jobs:
             https://github.com/ggml-org/llama.cpp.git \
             cpp/llama.cpp
 
+      # ─────────────────────────────────────
+      # Verify llama.cpp
+      # ─────────────────────────────────────
       - name: Verify llama.cpp
         shell: bash
         run: |
@@ -101,7 +135,12 @@ jobs:
           test -f cpp/llama.cpp/CMakeLists.txt
           test -f cpp/llama.cpp/include/llama.h
 
-      - name: Build Debug APK
+          echo "llama.cpp verified successfully."
+
+      # ─────────────────────────────────────
+      # Build Release APK
+      # ─────────────────────────────────────
+      - name: Build Release APK
         working-directory: android
         shell: bash
         run: |
@@ -109,23 +148,33 @@ jobs:
 
           gradle assembleRelease --stacktrace --info
 
-      - name: Verify APK
+      # ─────────────────────────────────────
+      # Verify Release APK
+      # ─────────────────────────────────────
+      - name: Verify Release APK
         shell: bash
         run: |
           set -e
 
-          APK_PATH="android/app/build/outputs/apk/debug/app-debug.apk"
+          APK_PATH="android/app/build/outputs/apk/release/app-release.apk"
 
           if [ ! -f "$APK_PATH" ]; then
-            echo "ERROR: APK was not generated."
+            echo "ERROR: Release APK was not generated."
+            echo ""
+            echo "Searching for generated APK files..."
+            find android/app/build/outputs -type f -name "*.apk" -print || true
             exit 1
           fi
 
+          echo "Release APK generated successfully:"
           ls -lh "$APK_PATH"
 
-      - name: Upload Debug APK
+      # ─────────────────────────────────────
+      # Upload Release APK
+      # ─────────────────────────────────────
+      - name: Upload Release APK
         uses: actions/upload-artifact@v4
         with:
-          name: myanmar-offline-ai-debug
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          name: myanmar-offline-ai-release
+          path: android/app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
